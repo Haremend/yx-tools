@@ -168,6 +168,32 @@ function setProgress(cur, total) {
   return null;
 }
 
+// 结果按「IP:端口」去重后 upsert：新一轮测到同一条就更新成最新数字，
+// 没测过的照常追加，旧轮次的结果不会被新一轮冲掉
+function upsertResult(r) {
+  const i = state.results.findIndex(x => x.ip + ':' + x.port === r.ip + ':' + r.port);
+  if (i >= 0) state.results[i] = r;
+  else state.results.push(r);
+}
+
+// 结果存到 localStorage，刷新页面 / 重启进程后历史还在
+const RESULT_KEY = 'yx-results';
+function persistResults() {
+  try { localStorage.setItem(RESULT_KEY, JSON.stringify(state.results)); } catch (_) {}
+}
+function restoreResults() {
+  try {
+    const v = JSON.parse(localStorage.getItem(RESULT_KEY));
+    if (Array.isArray(v)) state.results = v;
+  } catch (_) {}
+}
+
+// 导出排序：速度从高到低（只测延迟时速度全为 0，就按延迟从低到高）
+function sortResults(rows) {
+  return rows.slice().sort((a, b) =>
+    a.speed === b.speed ? a.delay - b.delay : b.speed - a.speed);
+}
+
 function connectEvents() {
   const es = new EventSource('/api/events');
   es.onmessage = ev => {
@@ -182,18 +208,23 @@ function connectEvents() {
     if (e.type === 'progress') setProgress(e.current, e.total);
     if (e.type === 'result' && e.result) {
       // 下载测速逐条回来，测一个显示一个，不用等整批跑完
-      state.results.push(e.result);
+      upsertResult(e.result);
+      persistResults();
       renderTable();
       setRunning(true, true);
       return;
     }
     if (e.type === 'done') {
-      state.results = e.results || [];
+      // done 带的是本轮保留的结果集（非 0 速度、按速度降序），
+      // 合并进已有历史而不是整体替换——慢节点和历史轮次都留着
+      (e.results || []).forEach(upsertResult);
+      state.results = sortResults(state.results);
+      persistResults();
       renderTable();
       setProgress(1, 1); // 收到 100% 再消失，别停在半截
       setRunning(false, true);
       setTimeout(() => { if (!state.running) setRunning(false); }, 600);
-      toast(`测速完成，${state.results.length} 个结果`, 'ok');
+      toast(`测速完成，本轮 ${e.results ? e.results.length : 0} 个结果，共 ${state.results.length} 条`, 'ok');
     } else if (e.type === 'error') {
       setRunning(false);
       $('#statusDot').className = 'dot err';
@@ -756,10 +787,18 @@ async function removeCron() {
   if (!state.system.cron_supported) $('#btnCron').classList.add('hidden');
 
   await loadConfig();
+  restoreResults(); // 先拿本地留存的跨刷新历史
   try {
     const st = await api('/api/status');
     if (st.running) { setRunning(true); }
-    if (st.count) { state.results = await api('/api/results'); renderTable(); }
+    if (st.count) {
+      // 服务端的是本进程内的结果，按 IP:端口 并进本地历史，谁都不冲掉
+      const srv = await api('/api/results');
+      srv.forEach(r => upsertResult(r));
+      state.results = sortResults(state.results);
+      persistResults();
+    }
+    renderTable();
   } catch (_) {}
   connectEvents();
 })();

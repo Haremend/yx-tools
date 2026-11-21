@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"sort"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -152,13 +154,17 @@ func (r *Runner) Start(o Options) bool {
 			r.broadcast(Event{Type: "error", Message: err.Error(), Finished: true})
 			return
 		}
+		// 保留的结果集 = 所有测出过速度（>0）的节点，按速度降序。
+		// 内核按「速度下限 + 数量」筛出的子集只用于收工，慢但非 0 的节点照样留着；
+		// 只测延迟的模式（速度恒为 0）则原样返回
 		r.mu.Lock()
-		r.results = rs
+		kept := retainedResults(rs, r.results, o.DisableDL)
+		r.results = kept
 		r.mu.Unlock()
-		if err := WriteCSV(ResultFile, rs); err != nil {
+		if err := WriteCSV(ResultFile, kept); err != nil {
 			r.broadcast(Event{Type: "log", Message: "结果写入失败: " + err.Error()})
 		}
-		r.broadcast(Event{Type: "done", Message: "测速完成", Results: rs, Total: len(rs), Current: len(rs), Finished: true})
+		r.broadcast(Event{Type: "done", Message: "测速完成", Results: kept, Total: len(kept), Current: len(kept), Finished: true})
 	}()
 	return true
 }
@@ -171,4 +177,41 @@ func (r *Runner) Cancel() {
 	if c != nil {
 		c()
 	}
+}
+
+// retainedResults 决定最终保留哪份结果集。
+// 只测延迟时（不下载，速度恒为 0）原样返回内核结果；
+// 下载测速时保留所有测出过速度（>0）的节点并按速度降序，
+// 而不是内核按「速度下限 + 数量」筛出的子集——慢但非 0 的节点同样留着，
+// 只有 0 速度的节点才算真正没用。streamed 是下载阶段逐条推上来的全量。
+func retainedResults(rs, streamed []Result, disableDL bool) []Result {
+	if disableDL {
+		return rs
+	}
+	seen := make(map[string]bool, len(streamed))
+	out := make([]Result, 0, len(streamed))
+	for _, r := range streamed {
+		if r.Speed <= 0 {
+			continue
+		}
+		key := r.IP
+		if r.Port > 0 { // 反代模式同一 IP 可能多端口，分开记
+			key += ":" + strconv.Itoa(r.Port)
+		}
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		out = append(out, r)
+	}
+	if len(out) == 0 {
+		return rs
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].Speed != out[j].Speed {
+			return out[i].Speed > out[j].Speed
+		}
+		return out[i].Delay < out[j].Delay
+	})
+	return out
 }
