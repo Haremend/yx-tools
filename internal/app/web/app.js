@@ -270,8 +270,9 @@ async function start() {
     setRunning(true);
     $('#statusDot').className = 'dot run';
     $('#statusText').textContent = '正在启动…';
-    // 清掉上一轮，逐条结果才不会叠在旧数据上
+    // 新一轮开始就清空上一轮历史，逐条结果才不会叠在旧数据上
     state.results = [];
+    persistResults();
     renderTable();
   } catch (e) {
     toast(e.message, 'err');
@@ -386,6 +387,10 @@ async function runProxy() {
     setRunning(true);
     $('#statusDot').className = 'dot run';
     $('#statusText').textContent = '正在测反代列表…';
+    // 新一轮开始就清空上一轮历史
+    state.results = [];
+    persistResults();
+    renderTable();
   } catch (e) { toast(e.message, 'err'); }
 }
 
