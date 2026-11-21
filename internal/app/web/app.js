@@ -95,7 +95,12 @@ function fmtDelay(v) {
 
 function visibleRows() {
   const q = $('#filterText').value.trim().toLowerCase();
+  const min = parseFloat($('#filterSpeedMin').value);
   let rows = state.results;
+  // 速度下限过滤：填了就只留速度不低于它的节点，上报 / 导出都按这个结果集走
+  if (!isNaN(min) && min > 0) {
+    rows = rows.filter(r => r.speed >= min);
+  }
   if (q) {
     rows = rows.filter(r =>
       r.ip.toLowerCase().includes(q) ||
@@ -400,6 +405,7 @@ async function uploadAPI() {
         worker_domain: domain, uuid: uuid,
         limit: +$('#cfgLimit').value || 0,
         clear: $('#cfgClear').checked,
+        results: visibleRows(), // 上报的是当前筛选结果集（含速度下限过滤）
       }),
     });
     toast(`已上报 ${r.count} 个 IP`, 'ok');
@@ -422,6 +428,7 @@ async function uploadGitHub() {
         token: $('#cfgToken').value.trim(),
         path: $('#cfgPath').value.trim(),
         limit: +$('#cfgLimit').value || 0,
+        results: visibleRows(), // 上传的是当前筛选结果集（含速度下限过滤）
       }),
     });
     toast(`已上传 ${r.count} 个 IP 到 GitHub`, 'ok');
@@ -740,6 +747,7 @@ async function removeCron() {
   $('#btnStart').onclick = start;
   $('#btnStop').onclick = () => api('/api/cancel', { method: 'POST' }).catch(() => {});
   $('#filterText').addEventListener('input', renderTable);
+  $('#filterSpeedMin').addEventListener('input', renderTable);
 
   document.querySelectorAll('thead th[data-sort]').forEach(th => {
     th.onclick = () => {

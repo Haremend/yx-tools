@@ -154,6 +154,7 @@
 
     <div class="toolbar">
       <input type="text" id="filterText" placeholder="筛选 IP 或地区" autocomplete="off">
+      <input type="number" id="filterSpeedMin" placeholder="速度下限 MB/s，留空不过滤" min="0" step="0.1" autocomplete="off" title="只显示速度不低于该值的节点；上报与导出都按此过滤结果">
       <span class="spacer"></span>
       <button class="btn ghost" id="btnProxy" title="导入外部 IP 列表并测速">
         <svg viewBox="0 0 24 24" class="ico"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>

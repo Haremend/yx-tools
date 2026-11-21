@@ -281,10 +281,11 @@ func (s *Server) resultsOrCSV(w http.ResponseWriter) ([]Result, bool) {
 
 func (s *Server) handleUploadAPI(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		Domain string `json:"worker_domain"`
-		UUID   string `json:"uuid"`
-		Limit  int    `json:"limit"`
-		Clear  bool   `json:"clear"`
+		Domain  string   `json:"worker_domain"`
+		UUID    string   `json:"uuid"`
+		Limit   int      `json:"limit"`
+		Clear   bool     `json:"clear"`
+		Results []Result `json:"results"` // 前端筛选后的结果集；非空时直接用它，不再回退本地累积/CSV
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		writeErr(w, http.StatusBadRequest, "请求格式错误")
@@ -297,9 +298,15 @@ func (s *Server) handleUploadAPI(w http.ResponseWriter, r *http.Request) {
 	if in.UUID == "" {
 		in.UUID = c.UUID
 	}
-	rs, ok := s.resultsOrCSV(w)
-	if !ok {
-		return
+	var rs []Result
+	if len(in.Results) > 0 {
+		rs = in.Results
+	} else {
+		var ok bool
+		rs, ok = s.resultsOrCSV(w)
+		if !ok {
+			return
+		}
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel()
@@ -315,10 +322,11 @@ func (s *Server) handleUploadAPI(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleUploadGitHub(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		Repo  string `json:"repo"`
-		Token string `json:"token"`
-		Path  string `json:"path"`
-		Limit int    `json:"limit"`
+		Repo    string   `json:"repo"`
+		Token   string   `json:"token"`
+		Path    string   `json:"path"`
+		Limit   int      `json:"limit"`
+		Results []Result `json:"results"` // 前端筛选后的结果集；非空时直接用它，不再回退本地累积/CSV
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		writeErr(w, http.StatusBadRequest, "请求格式错误")
@@ -334,9 +342,15 @@ func (s *Server) handleUploadGitHub(w http.ResponseWriter, r *http.Request) {
 	if in.Path == "" {
 		in.Path = c.GitHubPath
 	}
-	rs, ok := s.resultsOrCSV(w)
-	if !ok {
-		return
+	var rs []Result
+	if len(in.Results) > 0 {
+		rs = in.Results
+	} else {
+		var ok bool
+		rs, ok = s.resultsOrCSV(w)
+		if !ok {
+			return
+		}
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel()
