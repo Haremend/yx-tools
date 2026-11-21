@@ -502,6 +502,37 @@ function download(kind) {
   a.remove();
 }
 
+// ── 导出 Excel ────────────────────────────────────
+// 导出当前结果表（含筛选），带 BOM 的 UTF-8 CSV，Excel 双击直接打开不乱码
+function exportExcel() {
+  const rows = visibleRows();
+  if (!rows.length) { toast('没有可导出的结果', 'err'); return; }
+  const head = ['IP', '端口', '延迟(ms)', '速度(MB/s)', '丢包率', '地区码', '地区'];
+  const lines = [head.join(',')];
+  rows.forEach(r => {
+    lines.push([
+      r.ip,
+      r.port,
+      r.delay,
+      r.speed,
+      (r.loss_rate * 100).toFixed(0) + '%',
+      r.colo || '',
+      r.colo_name || '',
+    ].join(','));
+  });
+  const bom = String.fromCharCode(0xfeff);
+  const blob = new Blob([bom + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'yx-results-' + new Date().toISOString().slice(0, 10) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // 延后撤销，部分浏览器（Firefox）下载是异步启动的，立即撤销会中断下载
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  toast('已导出 ' + rows.length + ' 条（Excel 可直接打开）', 'ok');
+}
+
 // ── 自定义 IP 段文件导入 ──────────────────────────
 function importIPFile(file) {
   if (!file) return;
@@ -750,6 +781,7 @@ async function removeCron() {
   $('#btnUploadAPI').onclick = uploadAPI;
   $('#btnUploadGH').onclick = uploadGitHub;
   $('#btnDownload').onclick = () => download('result');
+  $('#btnExportExcel').onclick = exportExcel;
 
   $('#inIPFile').addEventListener('change', e => {
     importIPFile(e.target.files && e.target.files[0]);
