@@ -52,6 +52,26 @@ func newIPRanges() *IPRanges {
 	}
 }
 
+// parseIPPort 处理「IP:端口」行：把端口记到反代映射里，返回 IP 部分。
+// 普通 IP 或 IP 段没有端口时原样返回。
+func parseIPPort(line string) string {
+	// 检查是否是 IP:端口 格式（反代模式）
+	if strings.Contains(line, ":") && !strings.Contains(line, "/") {
+		parts := strings.Split(line, ":")
+		if len(parts) == 2 {
+			ip := strings.TrimSpace(parts[0])
+			portStr := strings.TrimSpace(parts[1])
+			if port, err := strconv.Atoi(portStr); err == nil && port > 0 && port < 65536 {
+				// 存储端口映射
+				PortMapping[ip] = port
+				// 将IP作为单个IP处理
+				return ip
+			}
+		}
+	}
+	return line
+}
+
 // 如果是单独 IP 则加上子网掩码，反之则获取子网掩码(r.mask)
 func (r *IPRanges) fixIP(ip string) string {
 	// 如果不含有 '/' 则代表不是 IP 段，而是一个单独的 IP，因此需要加上 /32 /128 子网掩码
@@ -153,12 +173,25 @@ func (r *IPRanges) chooseIPv6() {
 func loadIPRanges() []*net.IPAddr {
 	ranges := newIPRanges()
 	if IPText != "" { // 从参数中获取 IP 段数据
-		IPs := strings.Split(IPText, ",") // 以逗号分隔为数组并循环遍历
+		// # 是行内备注（# 到行尾），要先按行剥掉再切分；
+		// 否则备注里的逗号 / 分号会被当成 IP 之间的分隔符切出脏值
+		var lines []string
+		for _, ln := range strings.Split(IPText, "\n") {
+			if i := strings.IndexByte(ln, '#'); i >= 0 {
+				ln = ln[:i]
+			}
+			lines = append(lines, ln)
+		}
+		// 逗号、分号、换行都能当分隔符：界面文本框按行填，不想敲逗号也行
+		IPs := strings.FieldsFunc(strings.Join(lines, "\n"), func(r rune) bool {
+			return r == ',' || r == '\n' || r == '\r' || r == ';'
+		})
 		for _, IP := range IPs {
 			IP = strings.TrimSpace(IP) // 去除首尾的空白字符（空格、制表符、换行符等）
-			if IP == "" {              // 跳过空的（即开头、结尾或连续多个 ,, 的情况）
+			if IP == "" {              // 跳过空的（即开头、结尾或连续多个分隔符的情况）
 				continue
 			}
+			IP = parseIPPort(IP) // 「IP:端口」记到端口映射，再按 IP 处理
 			ranges.parseCIDR(IP) // 解析 IP 段，获得 IP、IP 范围、子网掩码
 			if isIPv4(IP) {      // 生成要测速的所有 IPv4 / IPv6 地址（单个/随机/全部）
 				ranges.chooseIPv4()
