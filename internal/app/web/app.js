@@ -440,6 +440,8 @@ function setPool(n, opt) {
   const note = $('#poolNote');
   if ($('#inIPText').value.trim() !== '') {
     note.textContent = '用你填的自定义 IP 段，不走官方段';
+  } else if (state.system.local_ip_file) {
+    note.textContent = '将自动使用 exe 同目录的 ip.txt，不走官方段';
   } else if (n === 0) {
     note.textContent = '穷举网段内每个 IP，量很大、很慢';
   } else {

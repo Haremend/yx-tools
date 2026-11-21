@@ -40,7 +40,7 @@ const usage = `Cloudflare 优选 IP 测速工具 v%s
   -t      延迟测速线程数（默认 200，最大 1000）
   -port   测速端口（默认 443）
   -url    测速地址
-  -f      自定义 IP 文件（支持 IP:端口 每行一条）；留空自动用 Cloudflare 官方 IP 段
+  -f      自定义 IP 文件（支持 IP:端口 每行一条）；留空时优先用 exe 同目录的 ip.txt，都没有才下载 Cloudflare 官方 IP 段
   -c      参与延迟测速的候选 IP 数量，从官方段里随机抽（默认 0 不限，约 6000 个）
   -all    穷举每个网段的全部 IP（很慢，会忽略 -c）
   -http   用真实 HTTP 请求测延迟（含 TLS 握手与服务端响应），比 TCP 握手准

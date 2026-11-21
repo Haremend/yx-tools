@@ -65,6 +65,25 @@ func writableDir(dir string) bool {
 	return true
 }
 
+// SelfDir 返回可执行文件所在的目录（复用 cron.go 的 SelfPath，单一出处）
+func SelfDir() string {
+	return filepath.Dir(SelfPath())
+}
+
+// DefaultIPFile 返回 exe 同目录下的 ip.txt（若存在），否则返回空串。
+// 把 ip.txt 放在 exe 旁边，就不用每次在界面上重新贴 IP 列表了。
+func DefaultIPFile() string {
+	dir := SelfDir()
+	if dir == "" {
+		return ""
+	}
+	p := filepath.Join(dir, "ip.txt")
+	if st, err := os.Stat(p); err == nil && !st.IsDir() {
+		return p
+	}
+	return ""
+}
+
 // DataPath 把相对文件名解析到数据目录；已是绝对路径的原样返回
 func DataPath(name string) string {
 	if name == "" {

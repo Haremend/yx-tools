@@ -358,6 +358,8 @@ func (s *Server) handleSystem(w http.ResponseWriter, r *http.Request) {
 		"result_file":    ResultFile,
 		"proxy_file":     ProxyListFile,
 		"default_url":    DefaultTestURL,
+		// exe 同目录放了 ip.txt 就自动用它，界面据此提示用户
+		"local_ip_file": DefaultIPFile(),
 	})
 }
 

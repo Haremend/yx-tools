@@ -172,6 +172,13 @@ func Run(ctx context.Context, o Options, report func(Progress)) (rs []Result, er
 
 	ipFile := o.IPFile
 	if o.IPText == "" && ipFile == "" {
+		// 优先用 exe 同目录的 ip.txt：把名单放程序旁边，界面就不用来回贴了
+		if def := DefaultIPFile(); def != "" {
+			emit(Progress{Stage: "prepare", Message: "正在使用 " + def})
+			ipFile = def
+		}
+	}
+	if o.IPText == "" && ipFile == "" {
 		emit(Progress{Stage: "prepare", Message: "正在获取 Cloudflare IP 段"})
 		var err error
 		ipFile, err = ensureIPFile(ctx, o.IPv6)
