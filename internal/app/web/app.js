@@ -481,14 +481,10 @@ function setPool(n, opt) {
   state.pool = n;
   markPool(n, !!opt.custom);
   const note = $('#poolNote');
-  if ($('#inIPText').value.trim() !== '') {
-    note.textContent = '用你填的自定义 IP 段，不走官方段';
-  } else if (state.system.local_ip_file) {
-    note.textContent = '将自动使用 exe 同目录的 ip.txt，不走官方段';
-  } else if (n === 0) {
-    note.textContent = '穷举网段内每个 IP，量很大、很慢';
+  if (n === 0) {
+    note.textContent = '候选池里每个 IP 都测，量很大、很慢';
   } else {
-    note.textContent = `从 Cloudflare 官方 IP 段里随机抽 ${n} 个来测延迟`;
+    note.textContent = `候选 IP 超过 ${n} 个时随机抽 ${n} 个测延迟，不够就全测`;
   }
 }
 
@@ -502,6 +498,32 @@ function pickCustomPool() {
 
 function syncPoolNote() {
   setPool(state.pool, { custom: !$('#inPool').classList.contains('hidden') });
+  syncIPNote();
+}
+
+// 自定义 IP 段的来源说明：框里有内容就测这些；
+// 清空框 = 走 Cloudflare 官方段。exe 同目录有 ip.txt 时会预填进框里，可改可清空
+function syncIPNote() {
+  const el = $('#ipNote');
+  if (!el) return;
+  const hasText = $('#inIPText').value.trim() !== '';
+  if (!hasText) $('#ipFileName').textContent = ''; // 清空后来源提示也一并清掉
+  el.textContent = hasText
+    ? '测这些；清空就回落到 Cloudflare 官方 IP 段'
+    : '留空就用 Cloudflare 官方 IP 段，填了才会覆盖掉';
+}
+
+// exe 同目录有 ip.txt 就回显到文本框（用户可改、可清空），没有则保持留空
+function prefillIPText() {
+  const c = (state.system.local_ip_content || '').trim();
+  if (!c || $('#inIPText').value) return;
+  $('#inIPText').value = c;
+  const lines = c.split(/\r?\n/).filter(l => l.trim());
+  if (state.system.local_ip_file) {
+    $('#ipFileName').textContent = 'ip.txt · ' + lines.length + ' 条';
+    $('.more').open = true; // 让预填内容露出来，别藏在折叠里
+  }
+  syncIPNote();
 }
 
 // ── 下载结果文件 ──────────────────────────────────
@@ -830,6 +852,7 @@ async function removeCron() {
 
   try { state.system = await api('/api/system') || {}; } catch (_) {}
   if (!state.system.cron_supported) $('#btnCron').classList.add('hidden');
+  prefillIPText(); // exe 同目录有 ip.txt 就回显到文本框；没有则留空走官方段
 
   await loadConfig();
   restoreResults(); // 先拿本地留存的跨刷新历史

@@ -107,7 +107,7 @@
       </div>
       <div class="field">
         <label>自定义 IP 段（每行一条，支持 IP:端口）</label>
-        <em class="note">不填就用 Cloudflare 官方 IP 段，填了才会覆盖掉</em>
+        <em class="note" id="ipNote">不填就用 Cloudflare 官方 IP 段，填了才会覆盖掉</em>
         <textarea id="inIPText" rows="4" placeholder="每行一条，逗号或分号也行&#10;173.245.48.0/20&#10;1.1.1.1:2053 # 反代"></textarea>
         <label class="filepick">
           <input type="file" id="inIPFile" accept=".txt,.csv,text/plain" hidden>

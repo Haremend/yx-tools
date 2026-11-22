@@ -218,6 +218,15 @@ func runTest(args []string) {
 	uf := bindUploadFlags(fs)
 	_ = fs.Parse(args)
 
+	// -f 留空时自动用 exe 同目录的 ip.txt：定时任务/脚本不用每条都带 -f。
+	// Web 端不走这里——它把 ip.txt 内容预填进文本框，由用户看着改或清空
+	if *ipFile == "" {
+		if def := app.DefaultIPFile(); def != "" {
+			*ipFile = def
+			fmt.Println("· 正在使用 " + def)
+		}
+	}
+
 	o := app.Options{
 		Colo: *colo, IPv6: *ipv6, Count: *count,
 		SpeedLimit: *speed, DelayLimit: *delay, Threads: *threads,

@@ -366,14 +366,23 @@ func (s *Server) handleUploadGitHub(w http.ResponseWriter, r *http.Request) {
 
 // handleSystem 返回运行环境信息，供界面决定展示哪些功能
 func (s *Server) handleSystem(w http.ResponseWriter, r *http.Request) {
+	localIP := DefaultIPFile()
+	// 把 ip.txt 内容一并带出，界面据此回显到「自定义 IP 段」文本框；
+	// 留空（用户清空文本框）就还是走 Cloudflare 官方段
+	var localIPContent string
+	if localIP != "" {
+		if b, err := os.ReadFile(localIP); err == nil {
+			localIPContent = string(b)
+		}
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"cron_supported": CronSupported(),
-		"self_path":      SelfPath(),
-		"result_file":    ResultFile,
-		"proxy_file":     ProxyListFile,
-		"default_url":    DefaultTestURL,
-		// exe 同目录放了 ip.txt 就自动用它，界面据此提示用户
-		"local_ip_file": DefaultIPFile(),
+		"cron_supported":   CronSupported(),
+		"self_path":        SelfPath(),
+		"result_file":      ResultFile,
+		"proxy_file":       ProxyListFile,
+		"default_url":      DefaultTestURL,
+		"local_ip_file":    localIP,
+		"local_ip_content": localIPContent,
 	})
 }
 
